@@ -21,24 +21,7 @@ interface SummarizeResponse {
 
 /**
  * Reddit Bot Integration
- * 
- * Setup Instructions:
- * 1. Create a Reddit account for your bot
- * 2. Go to https://www.reddit.com/prefs/apps
- * 3. Click "create another app..."
- * 4. Fill in the details:
- *    - Name: SaveMeAClickBot
- *    - Type: script
- *    - Description: Bot that summarizes articles and detects clickbait
- *    - About URL: (optional)
- *    - Redirect URI: http://localhost:8080
- * 5. Note down the client ID (under the app name) and client secret
- * 6. Add the following to your .env file:
- *    REDDIT_USER_AGENT=SaveMeAClickBot/1.0.0
- *    REDDIT_CLIENT_ID=your_client_id
- *    REDDIT_CLIENT_SECRET=your_client_secret
- *    REDDIT_USERNAME=your_bot_username
- *    REDDIT_PASSWORD=your_bot_password
+ * Monitors Reddit for mentions and summarizes articles
  */
 
 export class RedditBot {
@@ -83,7 +66,7 @@ export class RedditBot {
    */
   private formatReply(response: SummarizeResponse): string {
     const clickbaitStatus = response.isClickbait ? '⚠️ Clickbait detected!' : '✅ Title appears accurate';
-    return `Here's a summary of the article:\n\n${response.summary}\n\n${clickbaitStatus}\n\n${response.clickbaitAssessment}\n\n---\n\n^(I'm a bot that summarizes articles and detects clickbait. | [Source](https://github.com/yourusername/save-me-a-click))`;
+    return `Here's a summary of the article:\n\n${response.summary}\n\n${clickbaitStatus}\n\n${response.clickbaitAssessment}\n\n---\n\n^(I'm a bot that summarizes articles and detects clickbait.)`;
   }
 
   /**
@@ -100,18 +83,18 @@ export class RedditBot {
 
     try {
       // Call our summarize API
-      const response = await axios.post('http://localhost:3000/summarize', { url });
+      const response = await axios.post(process.env.API_URL || 'http://localhost:3000/summarize', { url });
       const summary = this.formatReply(response.data);
       
       // Reply to the comment
-      await comment.reply(summary);
+      await (comment.reply(summary) as unknown as Promise<void>);
       
       // Mark as processed
       this.processedComments.add(comment.id);
     } catch (error) {
       console.error('Error processing comment:', error);
       try {
-        await comment.reply('Sorry, I encountered an error while processing that article. Please try again later.');
+        await (comment.reply('Sorry, I encountered an error while processing that article. Please try again later.') as unknown as Promise<void>);
       } catch (replyError) {
         console.error('Error sending error reply:', replyError);
       }
@@ -125,7 +108,7 @@ export class RedditBot {
     console.log('Starting Reddit bot monitoring...');
 
     // Monitor mentions
-    this.client.getInbox().stream().on('item', async (item) => {
+    (await this.client.getInbox() as any).stream().on('item', async (item: Snoowrap.Comment | Snoowrap.PrivateMessage) => {
       if (item instanceof Snoowrap.Comment) {
         // Check if the comment mentions our bot
         if (item.body.toLowerCase().includes('u/savemeaclickbot')) {
@@ -137,7 +120,7 @@ export class RedditBot {
     // Monitor specific subreddits (optional)
     const subreddits = ['all']; // Add specific subreddits to monitor
     for (const subreddit of subreddits) {
-      this.client.getSubreddit(subreddit).getNewComments().stream().on('item', async (comment) => {
+      (await this.client.getSubreddit(subreddit).getNewComments() as any).stream().on('item', async (comment: Snoowrap.Comment) => {
         if (comment.body.toLowerCase().includes('u/savemeaclickbot')) {
           await this.processComment(comment);
         }

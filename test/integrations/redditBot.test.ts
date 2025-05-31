@@ -28,7 +28,7 @@ describe('RedditBot', () => {
     };
 
     // Mock Snoowrap instance
-    (Snoowrap as jest.Mock).mockImplementation(() => ({
+    (Snoowrap as unknown as jest.Mock).mockImplementation(() => ({
       getInbox: () => ({
         stream: () => ({
           on: jest.fn()

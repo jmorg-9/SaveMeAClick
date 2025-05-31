@@ -19,21 +19,7 @@ interface SummarizeResponse {
 
 /**
  * Instagram Bot Integration
- * 
- * Setup Instructions:
- * 1. Create a Facebook Developer account at https://developers.facebook.com
- * 2. Create a new app and add Instagram Basic Display API
- * 3. Convert your Instagram account to a Professional account
- * 4. Connect your Instagram account to your Facebook Page
- * 5. Generate a Page Access Token with the following permissions:
- *    - instagram_basic
- *    - instagram_manage_comments
- *    - instagram_manage_messages
- *    - pages_show_list
- *    - pages_read_engagement
- * 6. Add the following to your .env file:
- *    INSTAGRAM_PAGE_ACCESS_TOKEN=your_token_here
- *    INSTAGRAM_APP_ID=your_app_id_here
+ * Monitors Instagram for mentions and summarizes articles
  */
 
 export class InstagramBot {
@@ -119,7 +105,7 @@ export class InstagramBot {
 
     try {
       // Call our summarize API
-      const response = await axios.post('http://localhost:3000/summarize', { url });
+      const response = await axios.post(process.env.API_URL || 'http://localhost:3000/summarize', { url });
       const summary = this.formatReply(response.data);
       
       // Reply to the comment
