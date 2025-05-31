@@ -145,17 +145,44 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Create a `.env.test` file for test-specific environment variables:
-```
+### Test Environment Setup
+
+1. Create a `.env.test` file in the root directory. This file is used for test-specific environment variables and should contain dummy values since the tests use mocked API calls:
+
+```env
+# OpenAI API Configuration
 OPENAI_API_KEY=test-openai-key
+
+# Instagram Bot Configuration
 INSTAGRAM_PAGE_ACCESS_TOKEN=test-instagram-token
 INSTAGRAM_APP_ID=test-instagram-app-id
+
+# Reddit Bot Configuration
 REDDIT_USER_AGENT=SaveMeAClickBot/1.0.0
 REDDIT_CLIENT_ID=test-reddit-client-id
 REDDIT_CLIENT_SECRET=test-reddit-client-secret
 REDDIT_USERNAME=test-reddit-username
 REDDIT_PASSWORD=test-reddit-password
+
+# Server Configuration
+PORT=3000
 ```
+
+Note: These are dummy values used only for testing. The actual API calls are mocked in the tests, so these values don't need to be real credentials. If you don't provide a `.env.test` file, the test setup will use default test values.
+
+2. Add `.env.test` to your `.gitignore` file:
+```bash
+echo ".env.test" >> .gitignore
+```
+
+### Test Structure
+
+The test suite is organized as follows:
+- `test/setup.ts`: Test environment setup and mock configuration
+- `test/integrations/`: Integration tests for Instagram and Reddit bots
+- `jest.config.js`: Jest configuration for TypeScript support
+
+The tests use Jest's mocking capabilities to simulate API responses and external dependencies, ensuring reliable and fast test execution without making actual API calls.
 
 ## License
 
