@@ -1,22 +1,15 @@
-import Snoowrap from 'snoowrap';
+import { FastifyInstance } from 'fastify';
+import snoowrap from 'snoowrap';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-interface RedditConfig {
-  userAgent: string;
-  clientId: string;
-  clientSecret: string;
-  username: string;
-  password: string;
-}
-
 interface SummarizeResponse {
   title: string;
+  assessment: string;
   summary: string;
-  isClickbait: boolean;
-  clickbaitAssessment: string;
+  url: string;
 }
 
 /**
@@ -25,30 +18,24 @@ interface SummarizeResponse {
  */
 
 export class RedditBot {
-  private client: Snoowrap;
+  private config: FastifyInstance['config'];
+  private reddit: snoowrap;
   private processedComments: Set<string>;
+  private readonly BOT_USERNAME = 'savemeaclickbot';
 
-  constructor() {
-    const config: RedditConfig = {
-      userAgent: process.env.REDDIT_USER_AGENT || 'SaveMeAClickBot/1.0.0',
-      clientId: process.env.REDDIT_CLIENT_ID || '',
-      clientSecret: process.env.REDDIT_CLIENT_SECRET || '',
-      username: process.env.REDDIT_USERNAME || '',
-      password: process.env.REDDIT_PASSWORD || ''
-    };
-
-    if (!config.clientId || !config.clientSecret || !config.username || !config.password) {
-      throw new Error('Reddit configuration missing. Please check your .env file.');
+  constructor(config: FastifyInstance['config']) {
+    if (!config.REDDIT_CLIENT_ID || !config.REDDIT_CLIENT_SECRET || 
+        !config.REDDIT_USERNAME || !config.REDDIT_PASSWORD) {
+      throw new Error('Missing required Reddit credentials');
     }
-
-    this.client = new Snoowrap({
-      userAgent: config.userAgent,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      username: config.username,
-      password: config.password
+    this.config = config;
+    this.reddit = new snoowrap({
+      userAgent: 'SaveMeAClick Bot v1.0',
+      clientId: config.REDDIT_CLIENT_ID,
+      clientSecret: config.REDDIT_CLIENT_SECRET,
+      username: config.REDDIT_USERNAME,
+      password: config.REDDIT_PASSWORD
     });
-
     this.processedComments = new Set();
   }
 
@@ -64,32 +51,67 @@ export class RedditBot {
   /**
    * Format a reply with the summary and clickbait status
    */
-  private formatReply(response: SummarizeResponse): string {
-    const clickbaitStatus = response.isClickbait ? '⚠️ Clickbait detected!' : '✅ Title appears accurate';
-    return `Here's a summary of the article:\n\n${response.summary}\n\n${clickbaitStatus}\n\n${response.clickbaitAssessment}\n\n---\n\n^(I'm a bot that summarizes articles and detects clickbait.)`;
+  private formatContent(response: SummarizeResponse): string {
+    return `Here's a summary of the article:\n\n${response.assessment}\n\n${response.summary}\n\n[Original Article](${response.url})\n\n---\n\n^(I'm a bot that summarizes articles and detects clickbait.)`;
+  }
+
+  private isMention(text: string): boolean {
+    const mentionRegex = new RegExp(`u/${this.BOT_USERNAME}|/u/${this.BOT_USERNAME}`, 'i');
+    return mentionRegex.test(text);
+  }
+
+  private async findUrlInContext(comment: snoowrap.Comment): Promise<string | null> {
+    // First check the comment itself
+    const commentUrl = this.extractUrl(comment.body);
+    if (commentUrl) return commentUrl;
+
+    try {
+      // Get the submission (post) that this comment belongs to
+      const submission = await (comment as any).submission.fetch();
+      
+      // Check the post title and selftext
+      const postUrl = this.extractUrl(submission.title) || this.extractUrl(submission.selftext);
+      if (postUrl) return postUrl;
+
+      // If it's a link post, return the URL
+      if (submission.url && submission.url.startsWith('http')) {
+        return submission.url;
+      }
+
+      // If no URL found, check parent comments
+      if (comment.parent_id) {
+        const parentComment = await (comment as any).parent.fetch();
+        const parentUrl = this.extractUrl(parentComment.body);
+        if (parentUrl) return parentUrl;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding URL in context:', error);
+      return null;
+    }
   }
 
   /**
    * Process a comment and reply with article summary
    */
-  private async processComment(comment: Snoowrap.Comment): Promise<void> {
-    // Skip if we've already processed this comment
+  private async processComment(comment: snoowrap.Comment): Promise<void> {
     if (this.processedComments.has(comment.id)) {
       return;
     }
 
-    const url = this.extractUrl(comment.body);
-    if (!url) return;
+    const url = await this.findUrlInContext(comment);
+    if (!url) {
+      await (comment.reply('I couldn\'t find any article URL in this post or its comments. Please include a URL in your comment or make sure the post contains a link to an article.') as unknown as Promise<void>);
+      return;
+    }
 
     try {
-      // Call our summarize API
-      const response = await axios.post(process.env.API_URL || 'http://localhost:3000/summarize', { url });
-      const summary = this.formatReply(response.data);
+      const apiUrl = this.config.API_URL || 'http://localhost:3000';
+      const response = await axios.post(`${apiUrl}/summarize`, { url });
+      const summary = this.formatContent(response.data);
       
-      // Reply to the comment
       await (comment.reply(summary) as unknown as Promise<void>);
-      
-      // Mark as processed
       this.processedComments.add(comment.id);
     } catch (error) {
       console.error('Error processing comment:', error);
@@ -107,24 +129,36 @@ export class RedditBot {
   public async startMonitoring(): Promise<void> {
     console.log('Starting Reddit bot monitoring...');
 
-    // Monitor mentions
-    (await this.client.getInbox() as any).stream().on('item', async (item: Snoowrap.Comment | Snoowrap.PrivateMessage) => {
-      if (item instanceof Snoowrap.Comment) {
-        // Check if the comment mentions our bot
-        if (item.body.toLowerCase().includes('u/savemeaclickbot')) {
-          await this.processComment(item);
-        }
+    // Monitor mentions in inbox
+    (await this.reddit.getInbox() as any).stream().on('item', async (item: snoowrap.Comment | snoowrap.PrivateMessage) => {
+      if (item instanceof snoowrap.Comment && this.isMention(item.body)) {
+        await this.processComment(item);
       }
     });
 
-    // Monitor specific subreddits (optional)
+    // Monitor mentions in comments
     const subreddits = ['all']; // Add specific subreddits to monitor
     for (const subreddit of subreddits) {
-      (await this.client.getSubreddit(subreddit).getNewComments() as any).stream().on('item', async (comment: Snoowrap.Comment) => {
-        if (comment.body.toLowerCase().includes('u/savemeaclickbot')) {
+      (await this.reddit.getSubreddit(subreddit).getNewComments() as any).stream().on('item', async (comment: snoowrap.Comment) => {
+        if (this.isMention(comment.body)) {
           await this.processComment(comment);
         }
       });
+    }
+  }
+
+  async postToReddit(response: SummarizeResponse, subreddit: string): Promise<void> {
+    try {
+      const formattedContent = this.formatContent(response);
+      
+      await (this.reddit.getSubreddit(subreddit).submitSelfpost({
+        title: response.title,
+        text: formattedContent,
+        subredditName: subreddit
+      }) as unknown as Promise<void>);
+    } catch (error) {
+      console.error('Error posting to Reddit:', error);
+      throw error;
     }
   }
 } 

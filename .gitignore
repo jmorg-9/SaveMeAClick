@@ -6,12 +6,13 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
-# Environment variables
+# Environment files
+# !.env.example - Explicitly track the example file
+# .env - Ignore the main environment file with real credentials
+# .env.* - Ignore all other environment files (test, local, etc.)
+!.env.example
 .env
-.env.local
-.env.*.local
-.env.test
-ecosystem.config.js
+.env.*
 
 # Build output
 dist/
@@ -43,4 +44,7 @@ temp/
 .debug/
 
 # Private documentation
-docs/PRIVATE_SETUP.md 
+docs/PRIVATE_SETUP.md
+
+# Railway configuration
+railway.toml 

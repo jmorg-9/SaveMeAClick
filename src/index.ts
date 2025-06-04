@@ -1,15 +1,25 @@
 import Fastify from 'fastify';
-import dotenv from 'dotenv';
 import { summarizeRoute } from './routes/summarize.js';
 import { InstagramBot } from './integrations/instagramBot.js';
 import { RedditBot } from './integrations/redditBot.js';
-
-// Load environment variables
-dotenv.config();
+import envPlugin from './plugins/env.js';
 
 const server = Fastify({
-  logger: true
+  logger: {
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        translateTime: 'HH:MM:ss Z',
+        ignore: 'pid,hostname',
+        colorize: true
+      }
+    },
+    level: 'info'
+  }
 });
+
+// Register environment plugin first
+await server.register(envPlugin as any);
 
 // Register routes
 server.register(summarizeRoute);
@@ -22,27 +32,9 @@ server.get('/health', async () => {
 // Start server
 const start = async () => {
   try {
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+    const port = parseInt(server.config.PORT);
     await server.listen({ port, host: '0.0.0.0' });
-
-    // Initialize Instagram bot if credentials are available
-    if (process.env.INSTAGRAM_PAGE_ACCESS_TOKEN && process.env.INSTAGRAM_APP_ID) {
-      const instagramBot = new InstagramBot();
-      await instagramBot.startPolling();
-      server.log.info('Instagram bot started');
-    } else {
-      server.log.warn('Instagram bot not started - missing credentials');
-    }
-
-    // Initialize Reddit bot if credentials are available
-    if (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET && 
-        process.env.REDDIT_USERNAME && process.env.REDDIT_PASSWORD) {
-      const redditBot = new RedditBot();
-      await redditBot.startMonitoring();
-      server.log.info('Reddit bot started');
-    } else {
-      server.log.warn('Reddit bot not started - missing credentials');
-    }
+    server.log.info(`Server is running on port ${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

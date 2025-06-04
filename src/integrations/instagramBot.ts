@@ -1,20 +1,11 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-interface InstagramConfig {
-  pageAccessToken: string;
-  appId: string;
-  apiVersion: string;
-  baseUrl: string;
-}
+import { FastifyInstance } from 'fastify';
 
 interface SummarizeResponse {
   title: string;
+  assessment: string;
   summary: string;
-  isClickbait: boolean;
-  clickbaitAssessment: string;
+  url: string;
 }
 
 /**
@@ -23,22 +14,20 @@ interface SummarizeResponse {
  */
 
 export class InstagramBot {
-  private config: InstagramConfig;
+  private config: FastifyInstance['config'];
   private apiUrl: string;
+  private pageAccessToken: string;
+  private processedMentions: Set<string>;
 
-  constructor() {
-    this.config = {
-      pageAccessToken: process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || '',
-      appId: process.env.INSTAGRAM_APP_ID || '',
-      apiVersion: 'v18.0',
-      baseUrl: 'https://graph.facebook.com'
-    };
-
-    this.apiUrl = `${this.config.baseUrl}/${this.config.apiVersion}`;
-
-    if (!this.config.pageAccessToken || !this.config.appId) {
-      throw new Error('Instagram configuration missing. Please check your .env file.');
+  constructor(config: FastifyInstance['config']) {
+    if (!config.INSTAGRAM_PAGE_ACCESS_TOKEN) {
+      throw new Error('Missing required Instagram credentials');
     }
+    this.config = config;
+    this.pageAccessToken = config.INSTAGRAM_PAGE_ACCESS_TOKEN;
+    const { INSTAGRAM_BASE_URL, INSTAGRAM_API_VERSION } = this.config;
+    this.apiUrl = `${INSTAGRAM_BASE_URL}/${INSTAGRAM_API_VERSION}`;
+    this.processedMentions = new Set();
   }
 
   /**
@@ -50,12 +39,71 @@ export class InstagramBot {
     return match ? match[0] : null;
   }
 
-  /**
-   * Format a short reply with the summary and clickbait status
-   */
-  private formatReply(response: SummarizeResponse): string {
-    const clickbaitStatus = response.isClickbait ? '⚠️ Clickbait detected!' : '✅ Title appears accurate';
-    return `${response.summary}\n\n${clickbaitStatus}\n\n${response.clickbaitAssessment}`;
+  private formatContent(response: SummarizeResponse): string {
+    return `Here's a summary of the article:\n\n${response.assessment}\n\n${response.summary}\n\nOriginal Article: ${response.url}\n\n---\n\nI'm a bot that summarizes articles and detects clickbait.`;
+  }
+
+  private async getMediaCaption(mediaId: string): Promise<string> {
+    try {
+      const response = await axios.get(
+        `${this.apiUrl}/${mediaId}`,
+        {
+          params: {
+            fields: 'caption',
+            access_token: this.pageAccessToken
+          }
+        }
+      );
+      return response.data.caption || '';
+    } catch (error) {
+      console.error('Error fetching media caption:', error);
+      return '';
+    }
+  }
+
+  private async getParentComment(commentId: string): Promise<string> {
+    try {
+      const response = await axios.get(
+        `${this.apiUrl}/${commentId}`,
+        {
+          params: {
+            fields: 'parent_id,text',
+            access_token: this.pageAccessToken
+          }
+        }
+      );
+      return response.data.text || '';
+    } catch (error) {
+      console.error('Error fetching parent comment:', error);
+      return '';
+    }
+  }
+
+  private async findUrlInContext(mention: any): Promise<string | null> {
+    // First check the mention comment itself
+    const mentionUrl = this.extractUrl(mention.text);
+    if (mentionUrl) return mentionUrl;
+
+    try {
+      // If the mention is on a media post, check the caption
+      if (mention.media_id) {
+        const caption = await this.getMediaCaption(mention.media_id);
+        const captionUrl = this.extractUrl(caption);
+        if (captionUrl) return captionUrl;
+      }
+
+      // Check parent comment if it exists
+      if (mention.parent_id) {
+        const parentText = await this.getParentComment(mention.parent_id);
+        const parentUrl = this.extractUrl(parentText);
+        if (parentUrl) return parentUrl;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding URL in context:', error);
+      return null;
+    }
   }
 
   /**
@@ -67,8 +115,8 @@ export class InstagramBot {
         `${this.apiUrl}/me/mentions`,
         {
           params: {
-            access_token: this.config.pageAccessToken,
-            fields: 'id,text,username,media_id'
+            access_token: this.pageAccessToken,
+            fields: 'id,text,username,media_id,parent_id'
           }
         }
       );
@@ -88,7 +136,7 @@ export class InstagramBot {
         `${this.apiUrl}/${commentId}/replies`,
         {
           message,
-          access_token: this.config.pageAccessToken
+          access_token: this.pageAccessToken
         }
       );
     } catch (error) {
@@ -100,16 +148,26 @@ export class InstagramBot {
    * Process a mention and reply with article summary
    */
   private async processMention(mention: any): Promise<void> {
-    const url = this.extractUrl(mention.text);
-    if (!url) return;
+    if (this.processedMentions.has(mention.id)) {
+      return;
+    }
+
+    const url = await this.findUrlInContext(mention);
+    if (!url) {
+      await this.replyToComment(
+        mention.id,
+        'I couldn\'t find any article URL in this post or its comments. Please include a URL in your comment or make sure the post contains a link to an article.'
+      );
+      return;
+    }
 
     try {
-      // Call our summarize API
-      const response = await axios.post(process.env.API_URL || 'http://localhost:3000/summarize', { url });
-      const summary = this.formatReply(response.data);
+      const apiUrl = this.config.API_URL || 'http://localhost:3000';
+      const response = await axios.post(`${apiUrl}/summarize`, { url });
+      const summary = this.formatContent(response.data);
       
-      // Reply to the comment
       await this.replyToComment(mention.id, summary);
+      this.processedMentions.add(mention.id);
     } catch (error) {
       console.error('Error processing mention:', error);
       await this.replyToComment(
