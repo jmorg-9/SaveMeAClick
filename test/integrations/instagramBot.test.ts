@@ -8,19 +8,30 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe('InstagramBot', () => {
   let bot: InstagramBot;
   let mockMention: any;
+  let mockConfig: any;
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
 
+    // Mock config
+    mockConfig = {
+      INSTAGRAM_PAGE_ACCESS_TOKEN: 'test-token',
+      INSTAGRAM_BASE_URL: 'https://graph.instagram.com',
+      INSTAGRAM_API_VERSION: 'v18.0',
+      API_URL: 'http://localhost:3000'
+    };
+
     // Create bot instance
-    bot = new InstagramBot();
+    bot = new InstagramBot(mockConfig);
 
     // Mock mention
     mockMention = {
       id: 'test-mention-id',
       text: 'Check this out https://example.com/article',
-      username: 'testuser'
+      username: 'testuser',
+      media_id: 'test-media-id',
+      parent_id: 'test-parent-id'
     };
   });
 
@@ -38,79 +49,113 @@ describe('InstagramBot', () => {
     });
   });
 
-  describe('formatReply', () => {
-    it('should format reply with clickbait warning', () => {
+  describe('formatContent', () => {
+    it('should format content with assessment and summary', () => {
       const response = {
         title: 'Test Article',
+        assessment: 'This is clickbait',
         summary: 'Test summary',
-        isClickbait: true,
-        clickbaitAssessment: 'This is clickbait'
+        url: 'https://example.com/article'
       };
 
-      const reply = (bot as any).formatReply(response);
-      expect(reply).toContain('⚠️ Clickbait detected!');
-      expect(reply).toContain('Test summary');
-      expect(reply).toContain('This is clickbait');
-    });
-
-    it('should format reply with accurate title indicator', () => {
-      const response = {
-        title: 'Test Article',
-        summary: 'Test summary',
-        isClickbait: false,
-        clickbaitAssessment: 'Title is accurate'
-      };
-
-      const reply = (bot as any).formatReply(response);
-      expect(reply).toContain('✅ Title appears accurate');
-      expect(reply).toContain('Test summary');
-      expect(reply).toContain('Title is accurate');
+      const content = (bot as any).formatContent(response);
+      expect(content).toContain('Here\'s a summary of the article:');
+      expect(content).toContain('This is clickbait');
+      expect(content).toContain('Test summary');
+      expect(content).toContain('https://example.com/article');
     });
   });
 
-  describe('getRecentMentions', () => {
-    it('should fetch recent mentions', async () => {
+  describe('getMediaCaption', () => {
+    it('should fetch media caption', async () => {
       const mockResponse = {
         data: {
-          data: [mockMention]
+          caption: 'Check this article https://example.com/article'
         }
       };
 
       mockedAxios.get.mockResolvedValueOnce(mockResponse);
 
-      const mentions = await (bot as any).getRecentMentions();
-      expect(mentions).toEqual([mockMention]);
-      expect(mockedAxios.get).toHaveBeenCalled();
-    });
-
-    it('should handle API errors gracefully', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('API Error'));
-
-      const mentions = await (bot as any).getRecentMentions();
-      expect(mentions).toEqual([]);
-    });
-  });
-
-  describe('replyToComment', () => {
-    it('should send reply to comment', async () => {
-      const message = 'Test reply';
-      await (bot as any).replyToComment('test-comment-id', message);
-
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/test-comment-id/replies'),
+      const caption = await (bot as any).getMediaCaption('test-media-id');
+      expect(caption).toBe('Check this article https://example.com/article');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.stringContaining('/test-media-id'),
         expect.objectContaining({
-          message,
-          access_token: expect.any(String)
+          params: expect.objectContaining({
+            fields: 'caption'
+          })
         })
       );
     });
+  });
 
-    it('should handle API errors gracefully', async () => {
-      const consoleSpy = jest.spyOn(console, 'error');
-      mockedAxios.post.mockRejectedValueOnce(new Error('API Error'));
+  describe('getParentComment', () => {
+    it('should fetch parent comment', async () => {
+      const mockResponse = {
+        data: {
+          text: 'Check this article https://example.com/article'
+        }
+      };
 
-      await (bot as any).replyToComment('test-comment-id', 'Test reply');
-      expect(consoleSpy).toHaveBeenCalled();
+      mockedAxios.get.mockResolvedValueOnce(mockResponse);
+
+      const text = await (bot as any).getParentComment('test-parent-id');
+      expect(text).toBe('Check this article https://example.com/article');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect.stringContaining('/test-parent-id'),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            fields: 'parent_id,text'
+          })
+        })
+      );
+    });
+  });
+
+  describe('findUrlInContext', () => {
+    it('should find URL in mention text', async () => {
+      const url = await (bot as any).findUrlInContext(mockMention);
+      expect(url).toBe('https://example.com/article');
+    });
+
+    it('should find URL in media caption', async () => {
+      const mentionWithoutUrl = {
+        ...mockMention,
+        text: 'No URL here'
+      };
+
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          caption: 'Check this article https://example.com/article'
+        }
+      });
+
+      const url = await (bot as any).findUrlInContext(mentionWithoutUrl);
+      expect(url).toBe('https://example.com/article');
+    });
+
+    it('should find URL in parent comment', async () => {
+      const mentionWithoutUrl = {
+        ...mockMention,
+        text: 'No URL here'
+      };
+
+      // Mock empty media caption response
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          caption: ''
+        }
+      });
+
+      // Mock parent comment response
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          text: 'Check this article https://example.com/article'
+        }
+      });
+
+      const url = await (bot as any).findUrlInContext(mentionWithoutUrl);
+      expect(url).toBe('https://example.com/article');
     });
   });
 
@@ -119,9 +164,9 @@ describe('InstagramBot', () => {
       const mockResponse = {
         data: {
           title: 'Test Article',
+          assessment: 'This is clickbait',
           summary: 'Test summary',
-          isClickbait: false,
-          clickbaitAssessment: 'Title is accurate'
+          url: 'https://example.com/article'
         }
       };
 
@@ -141,15 +186,39 @@ describe('InstagramBot', () => {
         text: 'No URL here'
       };
 
+      // Mock empty responses for media caption and parent comment
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          caption: ''
+        }
+      });
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          text: ''
+        }
+      });
+
+      // Mock the reply to comment call
+      mockedAxios.post.mockResolvedValueOnce({});
+
       await (bot as any).processMention(mentionWithoutUrl);
-      expect(mockedAxios.post).not.toHaveBeenCalled();
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/test-mention-id/replies'),
+        expect.objectContaining({
+          message: expect.stringContaining('I couldn\'t find any article URL')
+        })
+      );
     });
 
     it('should handle API errors gracefully', async () => {
+      // Mock the summarize API call to fail
       mockedAxios.post.mockRejectedValueOnce(new Error('API Error'));
 
+      // Mock the error reply call
+      mockedAxios.post.mockResolvedValueOnce({});
+
       await (bot as any).processMention(mockMention);
-      expect(mockedAxios.post).toHaveBeenCalledTimes(2); // One for summarize, one for error reply
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -157,6 +226,13 @@ describe('InstagramBot', () => {
     it('should start polling for mentions', async () => {
       const consoleSpy = jest.spyOn(console, 'log');
       jest.useFakeTimers();
+
+      // Mock successful mentions response
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          data: []
+        }
+      });
 
       await bot.startPolling(1000);
 
