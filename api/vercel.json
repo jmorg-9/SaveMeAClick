@@ -12,7 +12,17 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/index.ts"
+      "dest": "src/index.ts",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     }
-  ]
+  ],
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 60
+    }
+  }
 } 
