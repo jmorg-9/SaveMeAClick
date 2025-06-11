@@ -3,7 +3,7 @@ import { summarizeRoute } from './routes/summarize.js';
 import envPlugin from './plugins/env.js';
 import cors from '@fastify/cors';
 
-export const server = Fastify({
+const server = Fastify({
   logger: {
     level: 'info',
     serializers: {
@@ -49,4 +49,9 @@ const start = async () => {
   }
 };
 
-start(); 
+// Only start the server if we're not in a serverless environment
+if (process.env.NODE_ENV !== 'production') {
+  start();
+}
+
+export default server; 
