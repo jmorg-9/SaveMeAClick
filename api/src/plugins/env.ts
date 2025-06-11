@@ -13,7 +13,7 @@
  * Usage:
  * - Access config values via fastify.config (e.g., fastify.config.OPENAI_API_KEY)
  * - All environment variables are typed and validated at startup
- * - In production, uses Railway's environment variables
+ * - In production, uses Vercel's environment variables
  * - In development, loads from .env file
  */
 
@@ -25,7 +25,7 @@ const envPlugin: FastifyPluginAsync = async (fastify) => {
   await fastify.register(fastifyEnv as any, {
     schema: {
       type: 'object',
-      required: ['OPENAI_API_KEY', 'PORT'],
+      required: ['OPENAI_API_KEY'],
       properties: {
         NODE_ENV: {
           type: 'string',
@@ -33,46 +33,22 @@ const envPlugin: FastifyPluginAsync = async (fastify) => {
         },
         PORT: {
           type: 'string',
-          default: '3000'
+          default: process.env.PORT || '3000' // Use Vercel's PORT if available
+        },
+        VERCEL_URL: {
+          type: 'string',
+          default: process.env.VERCEL_URL || 'localhost:3000'
         },
         OPENAI_API_KEY: {
           type: 'string'
         },
+        CORS_ORIGIN: {
+          type: 'string',
+          default: process.env.NODE_ENV === 'production' ? undefined : '*'
+        },
         API_URL: {
           type: 'string',
-          default: 'http://localhost:3000'
-        },
-        // Instagram config
-        INSTAGRAM_PAGE_ACCESS_TOKEN: {
-          type: 'string'
-        },
-        INSTAGRAM_APP_ID: {
-          type: 'string'
-        },
-        INSTAGRAM_API_VERSION: {
-          type: 'string',
-          default: 'v18.0'
-        },
-        INSTAGRAM_BASE_URL: {
-          type: 'string',
-          default: 'https://graph.facebook.com'
-        },
-        // Reddit config
-        REDDIT_CLIENT_ID: {
-          type: 'string'
-        },
-        REDDIT_CLIENT_SECRET: {
-          type: 'string'
-        },
-        REDDIT_USERNAME: {
-          type: 'string'
-        },
-        REDDIT_PASSWORD: {
-          type: 'string'
-        },
-        REDDIT_USER_AGENT: {
-          type: 'string',
-          default: 'SaveMeAClickBot/1.0.0'
+          default: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
         }
       }
     },

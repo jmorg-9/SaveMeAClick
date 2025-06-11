@@ -37,8 +37,5 @@ temp/
 # Debug
 .debug/
 
-# Private documentation
-docs/PRIVATE_SETUP.md
-
-# Railway configuration
-railway.toml 
+# Vercel configuration
+.vercel/

@@ -1,10 +1,9 @@
 import Fastify from 'fastify';
 import { summarizeRoute } from './routes/summarize.js';
-import { InstagramBot } from './integrations/instagramBot.js';
-import { RedditBot } from './integrations/redditBot.js';
 import envPlugin from './plugins/env.js';
+import cors from '@fastify/cors';
 
-const server = Fastify({
+export const server = Fastify({
   logger: {
     transport: {
       target: 'pino-pretty',
@@ -20,6 +19,14 @@ const server = Fastify({
 
 // Register environment plugin first
 await server.register(envPlugin as any);
+
+// Register CORS
+await server.register(cors, {
+  origin: process.env.CORS_ORIGIN || true, // Use environment variable in production
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
+});
 
 // Register routes
 server.register(summarizeRoute);

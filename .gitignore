@@ -45,6 +45,3 @@ temp/
 
 # Private documentation
 docs/PRIVATE_SETUP.md
-
-# Railway configuration
-railway.toml 
