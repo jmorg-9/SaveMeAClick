@@ -23,10 +23,12 @@ await server.register(envPlugin as any);
 
 // Register CORS
 await server.register(cors, {
-  origin: process.env.CORS_ORIGIN || true, // Use environment variable in production
+  origin: true, // Allow all origins in development, use CORS_ORIGIN in production
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  preflight: true,
+  preflightContinue: false
 });
 
 // Register routes
@@ -37,20 +39,18 @@ server.get('/health', async () => {
   return { status: 'ok' };
 });
 
-// Start server
-const start = async () => {
-  try {
-    const port = parseInt(server.config.PORT);
-    await server.listen({ port, host: '0.0.0.0' });
-    server.log.info(`Server is running on port ${port}`);
-  } catch (err) {
-    server.log.error(err);
-    process.exit(1);
-  }
-};
-
 // Only start the server if we're not in a serverless environment
 if (process.env.NODE_ENV !== 'production') {
+  const start = async () => {
+    try {
+      const port = parseInt(server.config.PORT);
+      await server.listen({ port, host: '0.0.0.0' });
+      server.log.info(`Server is running on port ${port}`);
+    } catch (err) {
+      server.log.error(err);
+      process.exit(1);
+    }
+  };
   start();
 }
 
