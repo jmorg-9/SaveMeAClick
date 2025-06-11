@@ -62,11 +62,32 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post<AnalysisResult>(`${getApiUrl()}/summarize`, { url });
+      const response = await axios.post<AnalysisResult>(
+        `${getApiUrl()}/summarize`, 
+        { url },
+        {
+          timeout: 120000, // 120 seconds
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
       setResult(response.data);
       setShowResults(true);
     } catch (err) {
-      setError('Failed to analyze article. Please try again.');
+      if (axios.isAxiosError(err)) {
+        if (err.code === 'ECONNABORTED') {
+          setError('Request timed out. The article might be too long or complex. Please try a different article.');
+        } else if (err.response) {
+          setError(`Error: ${err.response.status} - ${err.response.data?.message || 'Unknown error'}`);
+        } else if (err.request) {
+          setError('No response from server. Please check your internet connection and try again.');
+        } else {
+          setError('Failed to analyze article. Please try again.');
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       console.error('Error:', err);
     } finally {
       setLoading(false);

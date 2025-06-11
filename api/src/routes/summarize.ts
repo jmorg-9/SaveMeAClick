@@ -73,10 +73,14 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
       const { url } = request.body;
 
       try {
-        fastify.log.info({ url }, 'Attempting to extract article content');
+        fastify.log.info({ url }, 'Starting article analysis');
         
         // Extract article content
+        const extractStartTime = Date.now();
+        fastify.log.info('Starting article extraction...');
         const article = await extract(url);
+        const extractTime = Date.now() - extractStartTime;
+        fastify.log.info({ extractTime }, 'Article extraction completed');
         
         if (!article) {
           fastify.log.error({ url }, 'Article extraction returned null');
@@ -96,10 +100,13 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
         fastify.log.info({ 
           url, 
           title: article.title,
-          contentLength: article.content.length 
+          contentLength: article.content.length,
+          extractTime 
         }, 'Successfully extracted article');
 
         // Get summary and analysis from OpenAI
+        const openaiStartTime = Date.now();
+        fastify.log.info('Starting OpenAI analysis...');
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
@@ -137,6 +144,8 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
             }
           ]
         });
+        const openaiTime = Date.now() - openaiStartTime;
+        fastify.log.info({ openaiTime }, 'OpenAI analysis completed');
 
         const response = completion.choices[0].message.content;
         if (!response) {
@@ -144,9 +153,9 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
           throw new Error('Failed to get response from OpenAI');
         }
 
-        fastify.log.info({ response }, 'Raw OpenAI response');
-
         // Parse the response into structured data
+        const parseStartTime = Date.now();
+        fastify.log.info('Starting response parsing...');
         const lines = response.split('\n').map(line => line.trim()).filter(line => line);
         const titleLine = lines.find(line => line.startsWith('Title:'));
         const assessmentLine = lines.find(line => line.match(/[🚫✅⚠️❓]/));
@@ -182,6 +191,9 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
             return acc;
           }, {} as Record<string, number>);
 
+        const parseTime = Date.now() - parseStartTime;
+        fastify.log.info({ parseTime }, 'Response parsing completed');
+
         const processingTime = (Date.now() - startTime) / 1000; // in seconds
         const estimatedReadingTime = qualityMetrics['Estimated Reading Time'] || 5; // default to 5 minutes if not provided
         const timeSaved = Math.max(0, estimatedReadingTime - (processingTime / 60)); // in minutes
@@ -193,15 +205,22 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
           (qualityMetrics['Content Depth'] || 0) * 0.4
         );
 
+        fastify.log.info({ 
+          totalTime: processingTime,
+          extractTime,
+          openaiTime,
+          parseTime
+        }, 'Request completed');
+
         return {
           title: titleLine.replace('Title:', '').trim(),
           assessment: assessmentLine.trim(),
           summary: summary,
           keyPoints: keyPoints,
           url: url,
-          qualityScore,
-          timeSaved,
-          processingTime,
+          qualityScore: qualityScore,
+          timeSaved: timeSaved,
+          processingTime: processingTime,
           clickbaitScore: qualityMetrics['Clickbait Score'] || 0,
           contentQuality: {
             readability: qualityMetrics['Readability'] || 0,
@@ -212,7 +231,8 @@ export const summarizeRoute = async (fastify: FastifyInstance) => {
       } catch (error) {
         fastify.log.error({ 
           error: error instanceof Error ? error.message : 'Unknown error',
-          url 
+          url,
+          totalTime: (Date.now() - startTime) / 1000
         }, 'Error in summarize route');
         throw error;
       }
