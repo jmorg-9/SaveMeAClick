@@ -3,21 +3,18 @@ import { summarizeRoute } from './routes/summarize.js';
 import envPlugin from './plugins/env.js';
 import cors from '@fastify/cors';
 
-const isDevelopment = process.env.NODE_ENV !== 'production';
-
 export const server = Fastify({
-  logger: isDevelopment ? {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname',
-        colorize: true
-      }
+  logger: {
+    level: 'info',
+    serializers: {
+      req: (req) => ({
+        method: req.method,
+        url: req.url,
+      }),
+      res: (res) => ({
+        statusCode: res.statusCode,
+      }),
     },
-    level: 'info'
-  } : {
-    level: 'info'
   }
 });
 
