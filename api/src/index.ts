@@ -3,8 +3,10 @@ import { summarizeRoute } from './routes/summarize.js';
 import envPlugin from './plugins/env.js';
 import cors from '@fastify/cors';
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 export const server = Fastify({
-  logger: {
+  logger: isDevelopment ? {
     transport: {
       target: 'pino-pretty',
       options: {
@@ -13,6 +15,8 @@ export const server = Fastify({
         colorize: true
       }
     },
+    level: 'info'
+  } : {
     level: 'info'
   }
 });
