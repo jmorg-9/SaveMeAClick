@@ -1,7 +1,7 @@
 /**
  * Environment Configuration Plugin
  * 
- * This plugin manages environment variables for the SaveMeAClick application using @fastify/env.
+ * This plugin manages environment variables for the TheClickBaitCrusader application using @fastify/env.
  * It provides type-safe access to environment variables and validates required configurations.
  * 
  * Key Features:

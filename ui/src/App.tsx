@@ -96,7 +96,7 @@ export default function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box
+      <Box id="analyze"
         sx={{
           minHeight: '100vh',
           display: 'flex',
