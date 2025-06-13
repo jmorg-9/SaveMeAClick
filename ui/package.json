@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "ui": "cd ui && npm run dev",
+    "api": "cd api && npm run dev",
     "dev": "vite",
     "build": "tsc && vite build",
     "build-clean": "tsc --build --clean",
