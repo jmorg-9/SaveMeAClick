@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "src/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 120
+      }
     }
   ],
   "routes": [
@@ -17,10 +20,5 @@
         "Access-Control-Allow-Headers": "Content-Type, Authorization"
       }
     }
-  ],
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 120
-    }
-  }
+  ]
 } 
