@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { summarizeRoute } from './routes/summarize.js';
+import { testRoute } from './routes/test.js';
 import envPlugin from './plugins/env.js';
 import cors from '@fastify/cors';
 
@@ -44,6 +45,7 @@ await server.register(cors, {
 
 // Register routes
 server.register(summarizeRoute);
+server.register(testRoute);
 
 // Health check route
 server.get('/health', async () => {
