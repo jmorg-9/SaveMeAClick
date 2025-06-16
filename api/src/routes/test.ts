@@ -5,6 +5,7 @@ interface TestResponse {
   message: string;
   processingTime: number;
   model: string;
+  chunks: number;
 }
 
 export const testRoute = async (fastify: FastifyInstance) => {
@@ -25,7 +26,8 @@ export const testRoute = async (fastify: FastifyInstance) => {
             properties: {
               message: { type: 'string' },
               processingTime: { type: 'number' },
-              model: { type: 'string' }
+              model: { type: 'string' },
+              chunks: { type: 'number' }
             }
           }
         }
@@ -35,9 +37,12 @@ export const testRoute = async (fastify: FastifyInstance) => {
       const startTime = Date.now();
 
       try {
-        fastify.log.info('Starting simple OpenAI test request');
+        fastify.log.info('Starting simple OpenAI test request with streaming');
         
-        const completion = await openai.chat.completions.create({
+        let fullResponse = '';
+        let chunkCount = 0;
+        
+        const stream = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
             {
@@ -49,16 +54,32 @@ export const testRoute = async (fastify: FastifyInstance) => {
               content: "Say hello and tell me the current time."
             }
           ],
+          stream: true,
           max_tokens: 50
         });
 
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          fullResponse += content;
+          chunkCount++;
+          fastify.log.debug({ 
+            chunk: content,
+            chunkNumber: chunkCount 
+          }, 'Received chunk from OpenAI');
+        }
+
         const processingTime = (Date.now() - startTime) / 1000; // in seconds
-        fastify.log.info({ processingTime }, 'Test request completed');
+        fastify.log.info({ 
+          processingTime,
+          chunkCount,
+          responseLength: fullResponse.length 
+        }, 'Test request completed');
 
         return {
-          message: completion.choices[0].message.content || 'No response from OpenAI',
+          message: fullResponse || 'No response from OpenAI',
           processingTime,
-          model: "gpt-4o"
+          model: "gpt-4o",
+          chunks: chunkCount
         };
       } catch (error) {
         fastify.log.error({ 
