@@ -10,11 +10,22 @@ const server = Fastify({
       req: (req) => ({
         method: req.method,
         url: req.url,
+        headers: req.headers,
+        hostname: req.hostname,
+        remoteAddress: req.ip,
+        remotePort: req.socket?.remotePort
       }),
       res: (res) => ({
         statusCode: res.statusCode,
+        responseTime: res.getResponseTime?.() ?? 0
       }),
-    },
+      err: (err) => ({
+        type: err.name,
+        message: err.message,
+        stack: err.stack ?? '',
+        code: err.code ?? ''
+      })
+    }
   }
 });
 
