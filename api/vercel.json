@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "index.ts": {
+    "index.js": {
       "maxDuration": 60,
       "memory": 1024
     }
@@ -20,11 +20,11 @@
   "rewrites": [
     {
       "source": "/summarize",
-      "destination": "/index.ts"
+      "destination": "/index.js"
     },
     {
       "source": "/(.*)",
-      "destination": "/index.ts"
+      "destination": "/index.js"
     }
   ]
 }
