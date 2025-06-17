@@ -11,9 +11,21 @@
   ],
   "routes": [
     {
+      "src": "/summarize",
+      "methods": ["OPTIONS"],
+      "headers": {
+        "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400"
+      },
+      "continue": false
+    },
+    {
       "src": "/(.*)",
       "dest": "/src/index.ts",
-      "methods": ["GET", "POST", "OPTIONS"],
+      "methods": ["GET", "POST"],
       "headers": {
         "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
