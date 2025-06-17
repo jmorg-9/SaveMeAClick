@@ -41,7 +41,9 @@ await server.register(cors, {
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
-  credentials: true
+  credentials: true,
+  preflight: true,
+  preflightContinue: false
 });
 
 

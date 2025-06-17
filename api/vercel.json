@@ -2,19 +2,37 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/src/index.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
+  "headers": [
+    {
+      "source": "/summarize",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     { 
       "source": "/summarize", 
-      "destination": "/api/src/index.ts",
-      "headers": {
-        "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Max-Age": "86400"
-      }
+      "destination": "/api/src/index.ts"
     },
     { 
       "source": "/(.*)", 
