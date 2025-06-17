@@ -35,14 +35,14 @@ await server.register(envPlugin as any);
 
 // Register CORS
 await server.register(cors, {
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'https://the-clickbait-crusader.vercel.app'
-    : true,
+  origin: true, // Allow all origins
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type'],
   credentials: true,
   preflight: true,
-  preflightContinue: false
+  preflightContinue: false,
+  strictPreflight: false
 });
 
 // Register routes
