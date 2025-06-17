@@ -46,6 +46,12 @@ await server.register(cors, {
   preflightContinue: false
 });
 
+// Add error handling for serverless
+server.setErrorHandler((error, request, reply) => {
+  server.log.error(error);
+  reply.status(500).send({ error: 'Internal Server Error' });
+});
+
 
 // Register routes
 server.register(summarizeRoute);
