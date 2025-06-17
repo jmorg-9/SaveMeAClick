@@ -35,14 +35,10 @@ await server.register(envPlugin as any);
 
 // Register CORS
 await server.register(cors, {
-  origin: true, // Allow all origins
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Type'],
-  credentials: true,
-  preflight: true,
-  preflightContinue: false,
-  strictPreflight: false
+  origin: false, // Let Vercel handle CORS
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
 });
 
 // Register routes
