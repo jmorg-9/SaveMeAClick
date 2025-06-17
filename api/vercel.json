@@ -18,7 +18,13 @@
     }
   ],
   "rewrites": [
-    { "source": "/summarize", "destination": "/index.ts" },
-    { "source": "/(.*)",      "destination": "/index.ts" }
+    {
+      "source": "/summarize",
+      "destination": "/index.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.ts"
+    }
   ]
 }
