@@ -20,11 +20,11 @@
   "rewrites": [
     {
       "source": "/summarize",
-      "destination": "/index.js"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",
-      "destination": "/index.js"
+      "destination": "/api/index.js"
     }
   ]
 }
