@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "src/index.ts": {
+    "api/src/index.ts": {
       "maxDuration": 60
     }
   },
   "rewrites": [
-    { "source": "/summarize", "destination": "/src/index.ts" },
-    { "source": "/(.*)",      "destination": "/src/index.ts" }
+    { "source": "/summarize", "destination": "/api/src/index.ts" },
+    { "source": "/(.*)",      "destination": "/api/src/index.ts" }
   ]
 }
