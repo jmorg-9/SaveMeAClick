@@ -66,7 +66,7 @@ export default function App() {
         `${getApiUrl()}/summarize`, 
         { url },
         {
-          timeout: 120000, // 120 seconds
+          timeout: 240000, // 240 seconds
           headers: {
             'Content-Type': 'application/json',
           }

@@ -12,7 +12,7 @@ export const testRoute = async (fastify: FastifyInstance) => {
   // Initialize OpenAI client with config
   const openai = new OpenAI({
     apiKey: fastify.config.OPENAI_API_KEY,
-    timeout: 90000, // 90 second timeout for OpenAI requests
+    timeout: 240000, // 240 second timeout for OpenAI requests
     maxRetries: 3
   });
 
