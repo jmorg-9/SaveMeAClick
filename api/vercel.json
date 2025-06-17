@@ -6,7 +6,19 @@
     }
   },
   "rewrites": [
-    { "source": "/summarize", "destination": "/api/src/index.ts" },
-    { "source": "/(.*)",      "destination": "/api/src/index.ts" }
+    { 
+      "source": "/summarize", 
+      "destination": "/api/src/index.ts",
+      "headers": {
+        "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400"
+      }
+    },
+    { 
+      "source": "/(.*)", 
+      "destination": "/api/src/index.ts" 
+    }
   ]
 }
