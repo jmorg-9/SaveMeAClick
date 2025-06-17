@@ -35,11 +35,15 @@ await server.register(envPlugin as any);
 
 // Register CORS
 await server.register(cors, {
-  origin: false, // Let Vercel handle CORS
-  methods: ['GET', 'POST'],
+  origin: [
+    'https://the-clickbait-crusader.vercel.app',
+    'http://localhost:5173'      // optionally, other local servers
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
   credentials: true
 });
+
 
 // Register routes
 server.register(summarizeRoute);

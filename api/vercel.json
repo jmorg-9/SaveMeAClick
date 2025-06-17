@@ -1,39 +1,12 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "src/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 240
-      }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 60
     }
-  ],
-  "routes": [
-    {
-      "src": "/summarize",
-      "methods": ["OPTIONS"],
-      "headers": {
-        "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Max-Age": "86400"
-      },
-      "continue": false
-    },
-    {
-      "src": "/summarize",
-      "methods": ["POST"],
-      "headers": {
-        "Access-Control-Allow-Origin": "https://the-clickbait-crusader.vercel.app",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
-      "dest": "/src/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/src/index.ts"
-    }
+  },
+  "rewrites": [
+    { "source": "/summarize", "destination": "/src/index.ts" },
+    { "source": "/(.*)",      "destination": "/src/index.ts" }
   ]
 }
